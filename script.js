@@ -172,29 +172,6 @@ class NotesApp {
             });
         }
 
-        const exportNotes = document.getElementById('exportNotes');
-        if (exportNotes) {
-            exportNotes.addEventListener('click', () => {
-                this.exportNotes();
-            });
-        }
-
-        const importBtn = document.getElementById('importBtn');
-        if (importBtn) {
-            importBtn.addEventListener('click', () => {
-                document.getElementById('importNotes').click();
-            });
-        }
-
-        const importNotes = document.getElementById('importNotes');
-        if (importNotes) {
-            importNotes.addEventListener('change', (e) => {
-                if (e.target.files.length > 0) {
-                    this.importNotes(e.target.files[0]);
-                }
-            });
-        }
-
         // Keyboard shortcuts
         const noteContent = document.getElementById('noteContent');
         if (noteContent) {
@@ -634,100 +611,6 @@ class NotesApp {
             info: '#17a2b8'
         };
         return colors[type] || '#17a2b8';
-    }
-
-    // Export notes functionality
-    exportNotes() {
-        if (!this.isAuthenticated) {
-            this.showNotification('Debes iniciar sesión para exportar notas', 'warning');
-            return;
-        }
-
-        if (this.notes.length === 0) {
-            this.showNotification('No hay notas para exportar', 'warning');
-            return;
-        }
-
-        const dataStr = JSON.stringify(this.notes, null, 2);
-        const dataBlob = new Blob([dataStr], {type: 'application/json'});
-        const url = URL.createObjectURL(dataBlob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `notas-backup-${new Date().toISOString().split('T')[0]}.json`;
-        link.click();
-        URL.revokeObjectURL(url);
-        this.showNotification('Notas exportadas correctamente', 'success');
-    }
-
-    // Import notes functionality
-    importNotes(file) {
-        if (!this.isAuthenticated) {
-            this.showNotification('Debes iniciar sesión para importar notas', 'warning');
-            return;
-        }
-
-        if (!file.name.endsWith('.json')) {
-            this.showNotification('Por favor selecciona un archivo JSON válido', 'error');
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            try {
-                const importedNotes = JSON.parse(e.target.result);
-                if (Array.isArray(importedNotes)) {
-                    // Validar que las notas tengan la estructura correcta
-                    const validNotes = importedNotes.filter(note => 
-                        note && typeof note === 'object' && 
-                        (note.title || note.content)
-                    );
-                    
-                    if (validNotes.length === 0) {
-                        this.showNotification('El archivo no contiene notas válidas', 'error');
-                        return;
-                    }
-
-                    // Preguntar si reemplazar o agregar
-                    const action = confirm(
-                        `Se encontraron ${validNotes.length} notas.\n\n` +
-                        '¿Quieres reemplazar todas las notas actuales?\n' +
-                        'Clic en "Aceptar" para reemplazar, "Cancelar" para agregar.'
-                    );
-
-                    try {
-                        if (action) {
-                            // Delete all existing notes
-                            for (const note of this.notes) {
-                                await notesAPI.deleteNote(note.id);
-                            }
-                        }
-
-                        // Import notes
-                        for (const note of validNotes) {
-                            await notesAPI.createNote({
-                                title: note.title,
-                                content: note.content,
-                                user_id: this.currentUser.id
-                            });
-                        }
-
-                        await this.loadNotes();
-                        this.renderNotes();
-                        this.updateEmptyState();
-                        this.showNotification(`${validNotes.length} notas importadas correctamente`, 'success');
-                    } catch (error) {
-                        console.error('Error importing notes:', error);
-                        this.showNotification('Error al importar las notas', 'error');
-                    }
-                } else {
-                    throw new Error('Formato de archivo inválido');
-                }
-            } catch (error) {
-                console.error('Error importing notes:', error);
-                this.showNotification('Error al importar las notas. Verifica que el archivo sea válido.', 'error');
-            }
-        };
-        reader.readAsText(file);
     }
 }
 
