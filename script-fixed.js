@@ -1,4 +1,7 @@
-// Notes App JavaScript with Supabase CDN integration
+// Import Supabase modules
+import { supabase, auth, notesAPI, subscribeToNotes } from './js/supabase.js';
+
+// Notes App JavaScript with Supabase integration
 class NotesApp {
     constructor() {
         this.notes = [];
@@ -67,7 +70,7 @@ class NotesApp {
             authButtons.classList.add('hidden');
             if (userEmail) userEmail.textContent = this.currentUser.email;
             if (addNoteSection) addNoteSection.style.display = 'block';
-            if (notesSection) addNoteSection.style.display = 'block';
+            if (notesSection) notesSection.style.display = 'block';
             console.log('✅ UI actualizada para usuario autenticado');
         } else {
             userInfo.classList.add('hidden');

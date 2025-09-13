@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Supabase Connection</title>
+</head>
+<body>
+    <h1>Test de Conexión con Supabase</h1>
+    <div id="status">Probando conexión...</div>
+    <button id="testAuth">Probar Autenticación</button>
+    <div id="result"></div>
+
+    <script type="module">
+        import { supabase, auth } from './js/supabase.js';
+
+        const status = document.getElementById('status');
+        const result = document.getElementById('result');
+        const testAuth = document.getElementById('testAuth');
+
+        // Test basic connection
+        async function testConnection() {
+            try {
+                const { data, error } = await supabase.from('notes').select('count');
+                if (error) {
+                    status.innerHTML = `❌ Error de conexión: ${error.message}`;
+                    result.innerHTML = `<pre>${JSON.stringify(error, null, 2)}</pre>`;
+                } else {
+                    status.innerHTML = '✅ Conexión exitosa con Supabase';
+                    result.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                }
+            } catch (err) {
+                status.innerHTML = `❌ Error: ${err.message}`;
+                result.innerHTML = `<pre>${JSON.stringify(err, null, 2)}</pre>`;
+            }
+        }
+
+        // Test authentication
+        async function testAuthentication() {
+            try {
+                const { data, error } = await auth.signUp('test@example.com', 'password123');
+                if (error) {
+                    result.innerHTML = `❌ Error de autenticación: ${error.message}`;
+                } else {
+                    result.innerHTML = `✅ Autenticación exitosa: ${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (err) {
+                result.innerHTML = `❌ Error: ${err.message}`;
+            }
+        }
+
+        testAuth.addEventListener('click', testAuthentication);
+        testConnection();
+    </script>
+</body>
+</html>

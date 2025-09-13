@@ -1,4 +1,7 @@
-// Notes App JavaScript with Supabase CDN integration
+// Import Supabase modules
+import { supabase, auth, notesAPI, subscribeToNotes } from './js/supabase.js';
+
+// Notes App JavaScript with Supabase integration
 class NotesApp {
     constructor() {
         this.notes = [];
@@ -9,25 +12,17 @@ class NotesApp {
     }
 
     async init() {
-        console.log('🚀 Inicializando NotesApp...');
+        // Check authentication status
+        await this.checkAuth();
         
-        try {
-            // Check authentication status
-            await this.checkAuth();
-            
-            // Bind events
-            this.bindEvents();
-            
-            // Load notes if authenticated
-            if (this.isAuthenticated) {
-                await this.loadNotes();
-                this.renderNotes();
-                this.updateEmptyState();
-            }
-            
-            console.log('✅ NotesApp inicializada correctamente');
-        } catch (error) {
-            console.error('❌ Error inicializando NotesApp:', error);
+        // Bind events
+        this.bindEvents();
+        
+        // Load notes if authenticated
+        if (this.isAuthenticated) {
+            await this.loadNotes();
+            this.renderNotes();
+            this.updateEmptyState();
         }
     }
 
@@ -37,14 +32,13 @@ class NotesApp {
             if (user) {
                 this.currentUser = user;
                 this.isAuthenticated = true;
-                console.log('✅ Usuario autenticado:', user.email);
+                this.updateAuthUI();
             } else {
                 this.isAuthenticated = false;
-                console.log('ℹ️ Usuario no autenticado');
+                this.updateAuthUI();
             }
-            this.updateAuthUI();
         } catch (error) {
-            console.error('❌ Error checking auth:', error);
+            console.error('Error checking auth:', error);
             this.isAuthenticated = false;
             this.updateAuthUI();
         }
@@ -57,157 +51,88 @@ class NotesApp {
         const addNoteSection = document.querySelector('.add-note-section');
         const notesSection = document.querySelector('.notes-section');
 
-        if (!userInfo || !authButtons) {
-            console.error('❌ Elementos de UI no encontrados');
-            return;
-        }
-
         if (this.isAuthenticated) {
             userInfo.classList.remove('hidden');
             authButtons.classList.add('hidden');
-            if (userEmail) userEmail.textContent = this.currentUser.email;
-            if (addNoteSection) addNoteSection.style.display = 'block';
-            if (notesSection) addNoteSection.style.display = 'block';
-            console.log('✅ UI actualizada para usuario autenticado');
+            userEmail.textContent = this.currentUser.email;
+            addNoteSection.style.display = 'block';
+            notesSection.style.display = 'block';
         } else {
             userInfo.classList.add('hidden');
             authButtons.classList.remove('hidden');
-            if (addNoteSection) addNoteSection.style.display = 'block';
-            if (notesSection) addNoteSection.style.display = 'block';
-            console.log('✅ UI actualizada para usuario no autenticado');
+            addNoteSection.style.display = 'none';
+            notesSection.style.display = 'none';
         }
     }
 
     bindEvents() {
-        console.log('🔗 Configurando event listeners...');
-        
         // Auth events
-        const signInBtn = document.getElementById('signInBtn');
-        const signUpBtn = document.getElementById('signUpBtn');
-        const signOutBtn = document.getElementById('signOutBtn');
-        
-        if (signInBtn) {
-            signInBtn.addEventListener('click', () => {
-                console.log('🖱️ Clic en Iniciar Sesión');
-                this.showAuthModal('signin');
-            });
-            console.log('✅ Event listener para Iniciar Sesión configurado');
-        } else {
-            console.error('❌ Botón Iniciar Sesión no encontrado');
-        }
+        document.getElementById('signInBtn').addEventListener('click', () => {
+            this.showAuthModal('signin');
+        });
 
-        if (signUpBtn) {
-            signUpBtn.addEventListener('click', () => {
-                console.log('🖱️ Clic en Registrarse');
-                this.showAuthModal('signup');
-            });
-            console.log('✅ Event listener para Registrarse configurado');
-        } else {
-            console.error('❌ Botón Registrarse no encontrado');
-        }
+        document.getElementById('signUpBtn').addEventListener('click', () => {
+            this.showAuthModal('signup');
+        });
 
-        if (signOutBtn) {
-            signOutBtn.addEventListener('click', () => {
-                console.log('🖱️ Clic en Cerrar Sesión');
-                this.signOut();
-            });
-            console.log('✅ Event listener para Cerrar Sesión configurado');
-        }
+        document.getElementById('signOutBtn').addEventListener('click', () => {
+            this.signOut();
+        });
 
         // Modal events
-        const closeModal = document.getElementById('closeModal');
-        if (closeModal) {
-            closeModal.addEventListener('click', () => {
-                console.log('🖱️ Clic en cerrar modal');
-                this.hideAuthModal();
-            });
-            console.log('✅ Event listener para cerrar modal configurado');
-        }
+        document.getElementById('closeModal').addEventListener('click', () => {
+            this.hideAuthModal();
+        });
 
-        const authForm = document.getElementById('authForm');
-        if (authForm) {
-            authForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                console.log('📝 Enviando formulario de autenticación');
-                this.handleAuthForm();
-            });
-            console.log('✅ Event listener para formulario configurado');
-        }
+        document.getElementById('authForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleAuthForm();
+        });
 
-        const githubAuth = document.getElementById('githubAuth');
-        if (githubAuth) {
-            githubAuth.addEventListener('click', () => {
-                console.log('🖱️ Clic en GitHub Auth');
-                this.signInWithGitHub();
-            });
-        }
+        document.getElementById('githubAuth').addEventListener('click', () => {
+            this.signInWithGitHub();
+        });
 
-        const googleAuth = document.getElementById('googleAuth');
-        if (googleAuth) {
-            googleAuth.addEventListener('click', () => {
-                console.log('🖱️ Clic en Google Auth');
-                this.signInWithGoogle();
-            });
-        }
+        document.getElementById('googleAuth').addEventListener('click', () => {
+            this.signInWithGoogle();
+        });
 
         // Note events
-        const saveNote = document.getElementById('saveNote');
-        if (saveNote) {
-            saveNote.addEventListener('click', () => {
-                this.saveNote();
-            });
-        }
+        document.getElementById('saveNote').addEventListener('click', () => {
+            this.saveNote();
+        });
 
-        const clearForm = document.getElementById('clearForm');
-        if (clearForm) {
-            clearForm.addEventListener('click', () => {
-                this.clearForm();
-            });
-        }
+        document.getElementById('clearForm').addEventListener('click', () => {
+            this.clearForm();
+        });
 
-        const searchNotes = document.getElementById('searchNotes');
-        if (searchNotes) {
-            searchNotes.addEventListener('input', (e) => {
-                this.searchNotes(e.target.value);
-            });
-        }
+        document.getElementById('searchNotes').addEventListener('input', (e) => {
+            this.searchNotes(e.target.value);
+        });
 
-        const exportNotes = document.getElementById('exportNotes');
-        if (exportNotes) {
-            exportNotes.addEventListener('click', () => {
-                this.exportNotes();
-            });
-        }
+        document.getElementById('exportNotes').addEventListener('click', () => {
+            this.exportNotes();
+        });
 
-        const importBtn = document.getElementById('importBtn');
-        if (importBtn) {
-            importBtn.addEventListener('click', () => {
-                document.getElementById('importNotes').click();
-            });
-        }
+        document.getElementById('importBtn').addEventListener('click', () => {
+            document.getElementById('importNotes').click();
+        });
 
-        const importNotes = document.getElementById('importNotes');
-        if (importNotes) {
-            importNotes.addEventListener('change', (e) => {
-                if (e.target.files.length > 0) {
-                    this.importNotes(e.target.files[0]);
-                }
-            });
-        }
+        document.getElementById('importNotes').addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                this.importNotes(e.target.files[0]);
+            }
+        });
 
         // Keyboard shortcuts
-        const noteContent = document.getElementById('noteContent');
-        if (noteContent) {
-            noteContent.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && e.ctrlKey) {
-                    this.saveNote();
-                }
-            });
-        }
+        document.getElementById('noteContent').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                this.saveNote();
+            }
+        });
 
         // Listen to auth state changes
         auth.onAuthStateChange((event, session) => {
-            console.log('🔄 Auth state changed:', event);
             if (event === 'SIGNED_IN') {
                 this.currentUser = session.user;
                 this.isAuthenticated = true;
@@ -236,63 +161,35 @@ class NotesApp {
                 });
             });
         }
-        
-        console.log('✅ Todos los event listeners configurados');
     }
 
     showAuthModal(mode) {
-        console.log('🔍 Mostrando modal de autenticación:', mode);
-        
         const modal = document.getElementById('authModal');
         const modalTitle = document.getElementById('modalTitle');
         const submitAuth = document.getElementById('submitAuth');
         
-        if (!modal) {
-            console.error('❌ Modal no encontrado');
-            return;
-        }
-        
-        console.log('Modal antes de mostrar:', modal.className);
         modal.classList.remove('hidden');
-        console.log('Modal después de mostrar:', modal.className);
         
-        if (modalTitle) {
-            if (mode === 'signin') {
-                modalTitle.textContent = 'Iniciar Sesión';
-            } else {
-                modalTitle.textContent = 'Registrarse';
-            }
-        }
-        
-        if (submitAuth) {
-            if (mode === 'signin') {
-                submitAuth.innerHTML = '<i class="fas fa-sign-in-alt"></i> Iniciar Sesión';
-            } else {
-                submitAuth.innerHTML = '<i class="fas fa-user-plus"></i> Registrarse';
-            }
+        if (mode === 'signin') {
+            modalTitle.textContent = 'Iniciar Sesión';
+            submitAuth.innerHTML = '<i class="fas fa-sign-in-alt"></i> Iniciar Sesión';
+        } else {
+            modalTitle.textContent = 'Registrarse';
+            submitAuth.innerHTML = '<i class="fas fa-user-plus"></i> Registrarse';
         }
         
         this.authMode = mode;
-        console.log('✅ Modal mostrado correctamente');
     }
 
     hideAuthModal() {
-        console.log('🔍 Ocultando modal de autenticación');
-        
         const modal = document.getElementById('authModal');
-        if (modal) {
-            modal.classList.add('hidden');
-            const form = document.getElementById('authForm');
-            if (form) form.reset();
-            console.log('✅ Modal ocultado correctamente');
-        }
+        modal.classList.add('hidden');
+        document.getElementById('authForm').reset();
     }
 
     async handleAuthForm() {
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
-        
-        console.log('📝 Procesando formulario de autenticación:', this.authMode);
         
         try {
             if (this.authMode === 'signin') {
@@ -306,7 +203,7 @@ class NotesApp {
             }
             this.hideAuthModal();
         } catch (error) {
-            console.error('❌ Auth error:', error);
+            console.error('Auth error:', error);
             this.showNotification(error.message || 'Error en la autenticación', 'error');
         }
     }
@@ -317,7 +214,7 @@ class NotesApp {
             if (error) throw error;
             this.hideAuthModal();
         } catch (error) {
-            console.error('❌ GitHub auth error:', error);
+            console.error('GitHub auth error:', error);
             this.showNotification('Error al iniciar sesión con GitHub', 'error');
         }
     }
@@ -333,7 +230,7 @@ class NotesApp {
             if (error) throw error;
             this.hideAuthModal();
         } catch (error) {
-            console.error('❌ Google auth error:', error);
+            console.error('Google auth error:', error);
             this.showNotification('Error al iniciar sesión con Google', 'error');
         }
     }
@@ -344,7 +241,7 @@ class NotesApp {
             if (error) throw error;
             this.showNotification('Sesión cerrada correctamente', 'info');
         } catch (error) {
-            console.error('❌ Sign out error:', error);
+            console.error('Sign out error:', error);
             this.showNotification('Error al cerrar sesión', 'error');
         }
     }
@@ -360,7 +257,7 @@ class NotesApp {
             if (error) throw error;
             this.notes = data || [];
         } catch (error) {
-            console.error('❌ Error loading notes:', error);
+            console.error('Error loading notes:', error);
             this.showNotification('Error al cargar las notas', 'error');
             this.notes = [];
         }
@@ -405,7 +302,7 @@ class NotesApp {
             this.clearForm();
             this.updateEmptyState();
         } catch (error) {
-            console.error('❌ Error saving note:', error);
+            console.error('Error saving note:', error);
             this.showNotification('Error al guardar la nota', 'error');
         }
     }
@@ -443,7 +340,7 @@ class NotesApp {
                 this.updateEmptyState();
                 this.showNotification('Nota eliminada correctamente', 'info');
             } catch (error) {
-                console.error('❌ Error deleting note:', error);
+                console.error('Error deleting note:', error);
                 this.showNotification('Error al eliminar la nota', 'error');
             }
         }
@@ -469,7 +366,7 @@ class NotesApp {
             }
             this.renderNotes();
         } catch (error) {
-            console.error('❌ Error searching notes:', error);
+            console.error('Error searching notes:', error);
             this.showNotification('Error al buscar notas', 'error');
         }
     }
@@ -733,7 +630,6 @@ class NotesApp {
 
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 Inicializando aplicación...');
     window.app = new NotesApp();
 });
 
@@ -751,7 +647,7 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         if (window.app) {
             const modal = document.getElementById('authModal');
-            if (modal && !modal.classList.contains('hidden')) {
+            if (!modal.classList.contains('hidden')) {
                 window.app.hideAuthModal();
             } else {
                 window.app.clearForm();

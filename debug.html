@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Notas App</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .debug-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .error { color: red; }
+        .success { color: green; }
+        button { padding: 10px 20px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Debug - Notas App</h1>
+    
+    <div class="debug-section">
+        <h2>1. Verificar Elementos HTML</h2>
+        <div id="htmlCheck">Verificando...</div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>2. Verificar Configuración Supabase</h2>
+        <div id="supabaseCheck">Verificando...</div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>3. Probar Event Listeners</h2>
+        <button id="testSignIn">Probar Iniciar Sesión</button>
+        <button id="testSignUp">Probar Registrarse</button>
+        <div id="eventResult">Haz clic en los botones para probar</div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>4. Probar Modal</h2>
+        <button id="showModal">Mostrar Modal</button>
+        <button id="hideModal">Ocultar Modal</button>
+        <div id="modalResult">Modal oculto</div>
+    </div>
+
+    <!-- Modal de prueba -->
+    <div id="testModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 10px;">
+            <h3>Modal de Prueba</h3>
+            <p>Si ves esto, el modal funciona</p>
+            <button id="closeTestModal">Cerrar</button>
+        </div>
+    </div>
+
+    <script type="module">
+        // 1. Verificar elementos HTML
+        function checkHTMLElements() {
+            const elements = [
+                'signInBtn', 'signUpBtn', 'signOutBtn', 'authModal', 
+                'modalTitle', 'closeModal', 'authForm', 'email', 'password'
+            ];
+            
+            let html = '<ul>';
+            elements.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    html += `<li class="success">✅ ${id} - Encontrado</li>`;
+                } else {
+                    html += `<li class="error">❌ ${id} - NO ENCONTRADO</li>`;
+                }
+            });
+            html += '</ul>';
+            
+            document.getElementById('htmlCheck').innerHTML = html;
+        }
+
+        // 2. Verificar configuración Supabase
+        async function checkSupabase() {
+            try {
+                const { supabase } = await import('./js/supabase.js');
+                const { data, error } = await supabase.from('notes').select('count');
+                
+                if (error) {
+                    document.getElementById('supabaseCheck').innerHTML = 
+                        `<div class="error">❌ Error Supabase: ${error.message}</div>`;
+                } else {
+                    document.getElementById('supabaseCheck').innerHTML = 
+                        `<div class="success">✅ Supabase conectado correctamente</div>`;
+                }
+            } catch (err) {
+                document.getElementById('supabaseCheck').innerHTML = 
+                    `<div class="error">❌ Error importando Supabase: ${err.message}</div>`;
+            }
+        }
+
+        // 3. Probar event listeners
+        function testEventListeners() {
+            const testSignIn = document.getElementById('testSignIn');
+            const testSignUp = document.getElementById('testSignUp');
+            const result = document.getElementById('eventResult');
+            
+            testSignIn.addEventListener('click', () => {
+                result.innerHTML = '<div class="success">✅ Event listener de Iniciar Sesión funciona</div>';
+            });
+            
+            testSignUp.addEventListener('click', () => {
+                result.innerHTML = '<div class="success">✅ Event listener de Registrarse funciona</div>';
+            });
+        }
+
+        // 4. Probar modal
+        function testModal() {
+            const showModal = document.getElementById('showModal');
+            const hideModal = document.getElementById('hideModal');
+            const testModal = document.getElementById('testModal');
+            const closeTestModal = document.getElementById('closeTestModal');
+            const result = document.getElementById('modalResult');
+            
+            showModal.addEventListener('click', () => {
+                testModal.style.display = 'block';
+                result.innerHTML = '<div class="success">✅ Modal mostrado</div>';
+            });
+            
+            hideModal.addEventListener('click', () => {
+                testModal.style.display = 'none';
+                result.innerHTML = '<div class="success">✅ Modal oculto</div>';
+            });
+            
+            closeTestModal.addEventListener('click', () => {
+                testModal.style.display = 'none';
+                result.innerHTML = '<div class="success">✅ Modal cerrado</div>';
+            });
+        }
+
+        // Ejecutar todas las verificaciones
+        checkHTMLElements();
+        checkSupabase();
+        testEventListeners();
+        testModal();
+    </script>
+</body>
+</html>
