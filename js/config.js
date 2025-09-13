@@ -1,13 +1,13 @@
 // Configuration file for development and production environments
 const config = {
   development: {
-    supabaseUrl: 'YOUR_SUPABASE_URL', // Replace with your Supabase URL
-    supabaseAnonKey: 'YOUR_SUPABASE_ANON_KEY', // Replace with your Supabase anon key
+    supabaseUrl: 'https://bwguyandwdufasmfiumx.supabase.co',
+    supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ3Z3V5YW5kd2R1ZmFzbWZpdW14Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3ODEyMTYsImV4cCI6MjA3MzM1NzIxNn0.aXSYwxxY8NM6pRDnFSlASqSj7ckLoR4kXN2vbrLqBsk',
     environment: 'development'
   },
   production: {
-    supabaseUrl: 'YOUR_SUPABASE_URL', // Replace with your production Supabase URL
-    supabaseAnonKey: 'YOUR_SUPABASE_ANON_KEY', // Replace with your production Supabase anon key
+    supabaseUrl: 'https://bwguyandwdufasmfiumx.supabase.co',
+    supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ3Z3V5YW5kd2R1ZmFzbWZpdW14Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3ODEyMTYsImV4cCI6MjA3MzM1NzIxNn0.aXSYwxxY8NM6pRDnFSlASqSj7ckLoR4kXN2vbrLqBsk',
     environment: 'production'
   }
 };
