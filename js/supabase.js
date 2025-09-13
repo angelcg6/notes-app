@@ -1,12 +1,9 @@
 // Supabase configuration
 import { createClient } from '@supabase/supabase-js'
-
-// Supabase configuration
-const supabaseUrl = 'YOUR_SUPABASE_URL' // Replace with your Supabase URL
-const supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY' // Replace with your Supabase anon key
+import config from './config.js'
 
 // Create Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(config.supabaseUrl, config.supabaseAnonKey)
 
 // Auth helper functions
 export const auth = {
