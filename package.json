@@ -1,0 +1,20 @@
+{
+  "name": "notas-app",
+  "version": "1.0.0",
+  "description": "Aplicación de notas con backend en Supabase",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx serve .",
+    "build": "echo 'No build step needed for static app'",
+    "deploy": "echo 'Deploy to GitHub Pages'"
+  },
+  "keywords": ["notas", "notes", "supabase", "javascript"],
+  "author": "angelcg6",
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.38.0"
+  },
+  "devDependencies": {
+    "serve": "^14.2.1"
+  }
+}

@@ -1,39 +1,119 @@
-// Notes App JavaScript
+// Import Supabase modules
+import { supabase, auth, notesAPI, subscribeToNotes } from './js/supabase.js';
+
+// Notes App JavaScript with Supabase integration
 class NotesApp {
     constructor() {
-        this.notes = this.loadNotes();
+        this.notes = [];
         this.editingId = null;
+        this.currentUser = null;
+        this.isAuthenticated = false;
         this.init();
     }
 
-    init() {
+    async init() {
+        // Check authentication status
+        await this.checkAuth();
+        
+        // Bind events
         this.bindEvents();
-        this.renderNotes();
-        this.updateEmptyState();
+        
+        // Load notes if authenticated
+        if (this.isAuthenticated) {
+            await this.loadNotes();
+            this.renderNotes();
+            this.updateEmptyState();
+        }
+    }
+
+    async checkAuth() {
+        try {
+            const user = await auth.getCurrentUser();
+            if (user) {
+                this.currentUser = user;
+                this.isAuthenticated = true;
+                this.updateAuthUI();
+            } else {
+                this.isAuthenticated = false;
+                this.updateAuthUI();
+            }
+        } catch (error) {
+            console.error('Error checking auth:', error);
+            this.isAuthenticated = false;
+            this.updateAuthUI();
+        }
+    }
+
+    updateAuthUI() {
+        const userInfo = document.getElementById('userInfo');
+        const authButtons = document.getElementById('authButtons');
+        const userEmail = document.getElementById('userEmail');
+        const addNoteSection = document.querySelector('.add-note-section');
+        const notesSection = document.querySelector('.notes-section');
+
+        if (this.isAuthenticated) {
+            userInfo.classList.remove('hidden');
+            authButtons.classList.add('hidden');
+            userEmail.textContent = this.currentUser.email;
+            addNoteSection.style.display = 'block';
+            notesSection.style.display = 'block';
+        } else {
+            userInfo.classList.add('hidden');
+            authButtons.classList.remove('hidden');
+            addNoteSection.style.display = 'none';
+            notesSection.style.display = 'none';
+        }
     }
 
     bindEvents() {
-        // Save note button
+        // Auth events
+        document.getElementById('signInBtn').addEventListener('click', () => {
+            this.showAuthModal('signin');
+        });
+
+        document.getElementById('signUpBtn').addEventListener('click', () => {
+            this.showAuthModal('signup');
+        });
+
+        document.getElementById('signOutBtn').addEventListener('click', () => {
+            this.signOut();
+        });
+
+        // Modal events
+        document.getElementById('closeModal').addEventListener('click', () => {
+            this.hideAuthModal();
+        });
+
+        document.getElementById('authForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleAuthForm();
+        });
+
+        document.getElementById('githubAuth').addEventListener('click', () => {
+            this.signInWithGitHub();
+        });
+
+        document.getElementById('googleAuth').addEventListener('click', () => {
+            this.signInWithGoogle();
+        });
+
+        // Note events
         document.getElementById('saveNote').addEventListener('click', () => {
             this.saveNote();
         });
 
-        // Clear form button
         document.getElementById('clearForm').addEventListener('click', () => {
             this.clearForm();
         });
 
-        // Search functionality
         document.getElementById('searchNotes').addEventListener('input', (e) => {
             this.searchNotes(e.target.value);
         });
 
-        // Export notes
         document.getElementById('exportNotes').addEventListener('click', () => {
             this.exportNotes();
         });
 
-        // Import notes
         document.getElementById('importBtn').addEventListener('click', () => {
             document.getElementById('importNotes').click();
         });
@@ -44,24 +124,151 @@ class NotesApp {
             }
         });
 
-        // Save on Enter key (Ctrl+Enter for new line)
+        // Keyboard shortcuts
         document.getElementById('noteContent').addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && e.ctrlKey) {
                 this.saveNote();
             }
         });
 
-        // Auto-save functionality (optional)
-        document.getElementById('noteTitle').addEventListener('input', () => {
-            this.autoSave();
+        // Listen to auth state changes
+        auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_IN') {
+                this.currentUser = session.user;
+                this.isAuthenticated = true;
+                this.updateAuthUI();
+                this.loadNotes().then(() => {
+                    this.renderNotes();
+                    this.updateEmptyState();
+                });
+            } else if (event === 'SIGNED_OUT') {
+                this.currentUser = null;
+                this.isAuthenticated = false;
+                this.notes = [];
+                this.updateAuthUI();
+                this.renderNotes();
+                this.updateEmptyState();
+            }
         });
 
-        document.getElementById('noteContent').addEventListener('input', () => {
-            this.autoSave();
-        });
+        // Listen to real-time changes
+        if (this.isAuthenticated) {
+            subscribeToNotes((payload) => {
+                console.log('Real-time update:', payload);
+                this.loadNotes().then(() => {
+                    this.renderNotes();
+                    this.updateEmptyState();
+                });
+            });
+        }
     }
 
-    saveNote() {
+    showAuthModal(mode) {
+        const modal = document.getElementById('authModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const submitAuth = document.getElementById('submitAuth');
+        
+        modal.classList.remove('hidden');
+        
+        if (mode === 'signin') {
+            modalTitle.textContent = 'Iniciar Sesión';
+            submitAuth.innerHTML = '<i class="fas fa-sign-in-alt"></i> Iniciar Sesión';
+        } else {
+            modalTitle.textContent = 'Registrarse';
+            submitAuth.innerHTML = '<i class="fas fa-user-plus"></i> Registrarse';
+        }
+        
+        this.authMode = mode;
+    }
+
+    hideAuthModal() {
+        const modal = document.getElementById('authModal');
+        modal.classList.add('hidden');
+        document.getElementById('authForm').reset();
+    }
+
+    async handleAuthForm() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        
+        try {
+            if (this.authMode === 'signin') {
+                const { data, error } = await auth.signIn(email, password);
+                if (error) throw error;
+                this.showNotification('Sesión iniciada correctamente', 'success');
+            } else {
+                const { data, error } = await auth.signUp(email, password);
+                if (error) throw error;
+                this.showNotification('Cuenta creada correctamente. Revisa tu email para confirmar.', 'success');
+            }
+            this.hideAuthModal();
+        } catch (error) {
+            console.error('Auth error:', error);
+            this.showNotification(error.message || 'Error en la autenticación', 'error');
+        }
+    }
+
+    async signInWithGitHub() {
+        try {
+            const { data, error } = await auth.signInWithGitHub();
+            if (error) throw error;
+            this.hideAuthModal();
+        } catch (error) {
+            console.error('GitHub auth error:', error);
+            this.showNotification('Error al iniciar sesión con GitHub', 'error');
+        }
+    }
+
+    async signInWithGoogle() {
+        try {
+            const { data, error } = await auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: window.location.origin
+                }
+            });
+            if (error) throw error;
+            this.hideAuthModal();
+        } catch (error) {
+            console.error('Google auth error:', error);
+            this.showNotification('Error al iniciar sesión con Google', 'error');
+        }
+    }
+
+    async signOut() {
+        try {
+            const { error } = await auth.signOut();
+            if (error) throw error;
+            this.showNotification('Sesión cerrada correctamente', 'info');
+        } catch (error) {
+            console.error('Sign out error:', error);
+            this.showNotification('Error al cerrar sesión', 'error');
+        }
+    }
+
+    async loadNotes() {
+        if (!this.isAuthenticated) {
+            this.notes = [];
+            return;
+        }
+
+        try {
+            const { data, error } = await notesAPI.getNotes();
+            if (error) throw error;
+            this.notes = data || [];
+        } catch (error) {
+            console.error('Error loading notes:', error);
+            this.showNotification('Error al cargar las notas', 'error');
+            this.notes = [];
+        }
+    }
+
+    async saveNote() {
+        if (!this.isAuthenticated) {
+            this.showNotification('Debes iniciar sesión para guardar notas', 'warning');
+            return;
+        }
+
         const title = document.getElementById('noteTitle').value.trim();
         const content = document.getElementById('noteContent').value.trim();
 
@@ -70,35 +277,37 @@ class NotesApp {
             return;
         }
 
-        const note = {
-            id: this.editingId || Date.now().toString(),
+        const noteData = {
             title: title || 'Sin título',
             content: content || 'Sin contenido',
-            createdAt: this.editingId ? this.notes.find(n => n.id === this.editingId)?.createdAt : new Date().toISOString(),
-            updatedAt: new Date().toISOString()
+            user_id: this.currentUser.id
         };
 
-        if (this.editingId) {
-            // Update existing note
-            const index = this.notes.findIndex(n => n.id === this.editingId);
-            if (index !== -1) {
-                this.notes[index] = note;
+        try {
+            if (this.editingId) {
+                // Update existing note
+                const { data, error } = await notesAPI.updateNote(this.editingId, noteData);
+                if (error) throw error;
                 this.showNotification('Nota actualizada correctamente', 'success');
+                this.editingId = null;
+            } else {
+                // Create new note
+                const { data, error } = await notesAPI.createNote(noteData);
+                if (error) throw error;
+                this.showNotification('Nota guardada correctamente', 'success');
             }
-            this.editingId = null;
-        } else {
-            // Add new note
-            this.notes.unshift(note);
-            this.showNotification('Nota guardada correctamente', 'success');
-        }
 
-        this.saveNotes();
-        this.renderNotes();
-        this.clearForm();
-        this.updateEmptyState();
+            await this.loadNotes();
+            this.renderNotes();
+            this.clearForm();
+            this.updateEmptyState();
+        } catch (error) {
+            console.error('Error saving note:', error);
+            this.showNotification('Error al guardar la nota', 'error');
+        }
     }
 
-    editNote(id) {
+    async editNote(id) {
         const note = this.notes.find(n => n.id === id);
         if (note) {
             document.getElementById('noteTitle').value = note.title;
@@ -115,13 +324,25 @@ class NotesApp {
         }
     }
 
-    deleteNote(id) {
+    async deleteNote(id) {
+        if (!this.isAuthenticated) {
+            this.showNotification('Debes iniciar sesión para eliminar notas', 'warning');
+            return;
+        }
+
         if (confirm('¿Estás seguro de que quieres eliminar esta nota?')) {
-            this.notes = this.notes.filter(n => n.id !== id);
-            this.saveNotes();
-            this.renderNotes();
-            this.updateEmptyState();
-            this.showNotification('Nota eliminada correctamente', 'info');
+            try {
+                const { error } = await notesAPI.deleteNote(id);
+                if (error) throw error;
+                
+                await this.loadNotes();
+                this.renderNotes();
+                this.updateEmptyState();
+                this.showNotification('Nota eliminada correctamente', 'info');
+            } catch (error) {
+                console.error('Error deleting note:', error);
+                this.showNotification('Error al eliminar la nota', 'error');
+            }
         }
     }
 
@@ -132,12 +353,22 @@ class NotesApp {
         document.getElementById('noteTitle').focus();
     }
 
-    searchNotes(query) {
-        const filteredNotes = this.notes.filter(note => 
-            note.title.toLowerCase().includes(query.toLowerCase()) ||
-            note.content.toLowerCase().includes(query.toLowerCase())
-        );
-        this.renderNotes(filteredNotes);
+    async searchNotes(query) {
+        if (!this.isAuthenticated) return;
+
+        try {
+            if (query.trim() === '') {
+                await this.loadNotes();
+            } else {
+                const { data, error } = await notesAPI.searchNotes(query);
+                if (error) throw error;
+                this.notes = data || [];
+            }
+            this.renderNotes();
+        } catch (error) {
+            console.error('Error searching notes:', error);
+            this.showNotification('Error al buscar notas', 'error');
+        }
     }
 
     renderNotes(notesToRender = null) {
@@ -154,9 +385,9 @@ class NotesApp {
                 <div class="note-title">${this.escapeHtml(note.title)}</div>
                 <div class="note-content">${this.escapeHtml(note.content)}</div>
                 <div class="note-meta">
-                    <span>Creada: ${this.formatDate(note.createdAt)}</span>
-                    ${note.updatedAt !== note.createdAt ? 
-                        `<span>Actualizada: ${this.formatDate(note.updatedAt)}</span>` : 
+                    <span>Creada: ${this.formatDate(note.created_at)}</span>
+                    ${note.updated_at !== note.created_at ? 
+                        `<span>Actualizada: ${this.formatDate(note.updated_at)}</span>` : 
                         ''
                     }
                 </div>
@@ -176,62 +407,26 @@ class NotesApp {
         const emptyState = document.getElementById('emptyState');
         const notesContainer = document.getElementById('notesContainer');
         
-        if (this.notes.length === 0) {
+        if (!this.isAuthenticated) {
+            emptyState.innerHTML = `
+                <i class="fas fa-lock"></i>
+                <h3>Inicia sesión</h3>
+                <p>Necesitas iniciar sesión para ver tus notas</p>
+            `;
+            emptyState.classList.remove('hidden');
+            notesContainer.classList.add('hidden');
+        } else if (this.notes.length === 0) {
+            emptyState.innerHTML = `
+                <i class="fas fa-edit"></i>
+                <h3>No hay notas</h3>
+                <p>Comienza escribiendo tu primera nota</p>
+            `;
             emptyState.classList.remove('hidden');
             notesContainer.classList.add('hidden');
         } else {
             emptyState.classList.add('hidden');
             notesContainer.classList.remove('hidden');
         }
-    }
-
-    loadNotes() {
-        try {
-            const saved = localStorage.getItem('notesApp');
-            return saved ? JSON.parse(saved) : [];
-        } catch (error) {
-            console.error('Error loading notes:', error);
-            return [];
-        }
-    }
-
-    saveNotes() {
-        try {
-            localStorage.setItem('notesApp', JSON.stringify(this.notes));
-        } catch (error) {
-            console.error('Error saving notes:', error);
-            this.showNotification('Error al guardar las notas', 'error');
-        }
-    }
-
-    autoSave() {
-        // Auto-save draft every 30 seconds
-        clearTimeout(this.autoSaveTimeout);
-        this.autoSaveTimeout = setTimeout(() => {
-            const title = document.getElementById('noteTitle').value;
-            const content = document.getElementById('noteContent').value;
-            
-            if (title || content) {
-                localStorage.setItem('notesAppDraft', JSON.stringify({ title, content }));
-            }
-        }, 30000);
-    }
-
-    loadDraft() {
-        try {
-            const draft = localStorage.getItem('notesAppDraft');
-            if (draft) {
-                const { title, content } = JSON.parse(draft);
-                document.getElementById('noteTitle').value = title || '';
-                document.getElementById('noteContent').value = content || '';
-            }
-        } catch (error) {
-            console.error('Error loading draft:', error);
-        }
-    }
-
-    clearDraft() {
-        localStorage.removeItem('notesAppDraft');
     }
 
     escapeHtml(text) {
@@ -340,6 +535,11 @@ class NotesApp {
 
     // Export notes functionality
     exportNotes() {
+        if (!this.isAuthenticated) {
+            this.showNotification('Debes iniciar sesión para exportar notas', 'warning');
+            return;
+        }
+
         if (this.notes.length === 0) {
             this.showNotification('No hay notas para exportar', 'warning');
             return;
@@ -358,13 +558,18 @@ class NotesApp {
 
     // Import notes functionality
     importNotes(file) {
+        if (!this.isAuthenticated) {
+            this.showNotification('Debes iniciar sesión para importar notas', 'warning');
+            return;
+        }
+
         if (!file.name.endsWith('.json')) {
             this.showNotification('Por favor selecciona un archivo JSON válido', 'error');
             return;
         }
 
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             try {
                 const importedNotes = JSON.parse(e.target.result);
                 if (Array.isArray(importedNotes)) {
@@ -386,16 +591,31 @@ class NotesApp {
                         'Clic en "Aceptar" para reemplazar, "Cancelar" para agregar.'
                     );
 
-                    if (action) {
-                        this.notes = validNotes;
-                    } else {
-                        this.notes = [...this.notes, ...validNotes];
-                    }
+                    try {
+                        if (action) {
+                            // Delete all existing notes
+                            for (const note of this.notes) {
+                                await notesAPI.deleteNote(note.id);
+                            }
+                        }
 
-                    this.saveNotes();
-                    this.renderNotes();
-                    this.updateEmptyState();
-                    this.showNotification(`${validNotes.length} notas importadas correctamente`, 'success');
+                        // Import notes
+                        for (const note of validNotes) {
+                            await notesAPI.createNote({
+                                title: note.title,
+                                content: note.content,
+                                user_id: this.currentUser.id
+                            });
+                        }
+
+                        await this.loadNotes();
+                        this.renderNotes();
+                        this.updateEmptyState();
+                        this.showNotification(`${validNotes.length} notas importadas correctamente`, 'success');
+                    } catch (error) {
+                        console.error('Error importing notes:', error);
+                        this.showNotification('Error al importar las notas', 'error');
+                    }
                 } else {
                     throw new Error('Formato de archivo inválido');
                 }
@@ -411,14 +631,6 @@ class NotesApp {
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new NotesApp();
-    
-    // Load draft on page load
-    app.loadDraft();
-    
-    // Clear draft when saving
-    document.getElementById('saveNote').addEventListener('click', () => {
-        app.clearDraft();
-    });
 });
 
 // Add keyboard shortcuts
@@ -426,17 +638,28 @@ document.addEventListener('keydown', (e) => {
     // Ctrl+S to save
     if (e.ctrlKey && e.key === 's') {
         e.preventDefault();
-        app.saveNote();
+        if (window.app && window.app.isAuthenticated) {
+            window.app.saveNote();
+        }
     }
     
-    // Escape to clear form
+    // Escape to clear form or close modal
     if (e.key === 'Escape') {
-        app.clearForm();
+        if (window.app) {
+            const modal = document.getElementById('authModal');
+            if (!modal.classList.contains('hidden')) {
+                window.app.hideAuthModal();
+            } else {
+                window.app.clearForm();
+            }
+        }
     }
     
     // Ctrl+F to focus search
     if (e.ctrlKey && e.key === 'f') {
         e.preventDefault();
-        document.getElementById('searchNotes').focus();
+        if (window.app && window.app.isAuthenticated) {
+            document.getElementById('searchNotes').focus();
+        }
     }
 });
